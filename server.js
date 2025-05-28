@@ -1,14 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Predefined FAQs
 const faqs = [
@@ -95,10 +96,13 @@ app.post('/api/chat', async (req, res) => {
   }
 
   // Default GPT response
-  const completion = await openai.createChatCompletion({
-    model: 'gpt-4',
-    messages: [
-      { role: 'system', content: `
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: `
 You are a helpful assistant for Nationwide Management Services.
 Ask friendly questions to gather:
 1. What service the visitor needs
@@ -110,13 +114,21 @@ If they ask for contact info, reply with:
 "You can reach us at 0151 709 9665 or email info@nation-wide.co."
 
 Let them know their info will be passed to Lee in sales. Be friendly and helpful.
-` },
-      { role: 'user', content: userMessage }
-    ]
-  });
+          `
+        },
+        {
+          role: 'user',
+          content: userMessage
+        }
+      ]
+    });
 
-  const reply = completion.data.choices[0].message.content;
-  res.json({ reply });
+    const reply = completion.choices[0].message.content;
+    res.json({ reply });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error generating response");
+  }
 });
 
 const PORT = process.env.PORT || 3000;
